@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mySqlEditor2</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="styles.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="splash-logo" id="splashLogo" aria-hidden="true">
+    <img src="logo.png" alt="" />
+  </div>
+  <header class="topbar">
+    <div class="brand">
+      <img src="logo.png" alt="mySqlEditor2 logo" class="brand-logo" />
+      <div class="brand-text">
+        <span class="brand-title">mySqlEditor2</span>
+        <span class="brand-sub">SQL workspace</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-outline-light btn-sm" id="pasteImageBtn">Paste Image</button>
+      <button class="btn btn-outline-light btn-sm" id="connectBtn">Connect</button>
+    </div>
+  </header>
+
+  <button class="schema-tab" id="toggleSchemaTopBtn" type="button" aria-label="Show Schema">
+    <span class="schema-tab-icon" aria-hidden="true"></span>
+  </button>
+
+  <main class="workspace">
+    <div class="command-restore-bar">
+      <button class="restore-command-bar" id="restoreCommandBtn" aria-label="Restore Command"></button>
+    </div>
+    <section class="pane tree-pane">
+      <div class="pane-title pane-title-row">
+        <span>Schema</span>
+        <button class="btn btn-outline-light btn-sm" id="toggleSchemaBtn" type="button">Hide</button>
+      </div>
+      <div class="pane-body">
+        <div class="connection-select">
+          <label for="connectionSelect" class="form-label">Active connection</label>
+          <select id="connectionSelect" class="form-select form-select-sm"></select>
+        </div>
+        <div id="treeView" class="tree-view"></div>
+      </div>
+    </section>
+
+    <section class="pane command-pane">
+      <div class="pane-title pane-title-row">
+        <span>Command</span>
+        <div class="command-actions">
+          <button class="btn btn-primary btn-sm" id="runBtn">Run</button>
+          <button class="btn btn-outline-secondary btn-sm" id="clearBtn">Clear</button>
+        </div>
+        <div class="tabs-bar">
+          <div id="queryTabs" class="query-tabs"></div>
+          <button class="btn btn-outline-light btn-sm" id="newTabBtn">+ Tab</button>
+          <button class="btn btn-outline-light btn-sm" id="historyBtn">History</button>
+          <button class="btn btn-outline-light btn-sm" id="builderBtn">Builder</button>
+        </div>
+      </div>
+      <div class="pane-body command-body">
+        <textarea id="sqlInput" class="sql-input" placeholder="Enter SQL command here"></textarea>
+      </div>
+    </section>
+
+    <div class="pane-splitter" id="paneSplitter" aria-label="Resize panes"></div>
+
+    <section class="pane result-pane">
+      <div class="pane-title pane-title-row">
+        <span>Result</span>
+        <div class="result-toolbar">
+          <div class="result-views" id="resultViews">
+            <button class="btn btn-outline-light btn-sm active" data-view="table">Table</button>
+            <button class="btn btn-outline-light btn-sm" data-view="csv">CSV</button>
+            <button class="btn btn-outline-light btn-sm" data-view="json">JSON</button>
+            <button class="btn btn-outline-light btn-sm" data-view="smart">Smart Table</button>
+          </div>
+          <div class="result-controls" id="resultControls"></div>
+        </div>
+      </div>
+      <div class="pane-body">
+        <div id="resultTable" class="result-table"></div>
+      </div>
+      <div class="pane-status" id="statusLine">Ready.</div>
+    </section>
+  </main>
+
+  <div class="context-menu" id="tableContextMenu">
+    <button type="button" class="context-item" data-action="insert-name">Add Table Name</button>
+    <button type="button" class="context-item" data-action="select-all">Create Command</button>
+    <button type="button" class="context-item" data-action="select-fields">Create Command With Fields</button>
+  </div>
+
+  <div class="modal fade" id="connectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Connections</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-5">
+              <div class="connections-list">
+                <div class="list-title">Saved</div>
+                <ul id="connectionsList" class="list-group"></ul>
+              </div>
+            </div>
+            <div class="col-md-7">
+              <form id="connectionForm" class="connection-form">
+                <input type="hidden" id="connId" />
+                <div class="mb-2">
+                  <label class="form-label">Name</label>
+                  <input type="text" id="connName" class="form-control" placeholder="Local MySQL" required />
+                </div>
+                <div class="mb-2">
+                  <label class="form-label">Type</label>
+                  <select id="connType" class="form-select">
+                    <option value="mysql">MySQL</option>
+                    <option value="sqlite">SQLite</option>
+                    <option value="dynamodb">DynamoDB</option>
+                    <option value="postgres">Postgres</option>
+                  </select>
+                </div>
+                <div class="row g-2">
+                  <div class="col-md-8">
+                    <label class="form-label">Host</label>
+                    <input type="text" id="connHost" class="form-control" placeholder="localhost" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Port</label>
+                    <input type="text" id="connPort" class="form-control" placeholder="3306" />
+                  </div>
+                </div>
+                <div class="row g-2 mt-1">
+                  <div class="col-md-7">
+                    <label class="form-label">Database</label>
+                    <input type="text" id="connDb" class="form-control" placeholder="mydb" />
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label">User</label>
+                    <input type="text" id="connUser" class="form-control" placeholder="root" />
+                  </div>
+                </div>
+                <div class="mt-2">
+                  <label class="form-label">Password</label>
+                  <input type="password" id="connPass" class="form-control" placeholder="optional" />
+                </div>
+                <div class="mt-2">
+                  <label class="form-label">SQLite File</label>
+                  <input type="text" id="connFile" class="form-control" placeholder="/path/to/db.sqlite" />
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                  <button class="btn btn-primary" type="submit">Save</button>
+                  <button class="btn btn-outline-secondary" type="button" id="newConnBtn">New</button>
+                </div>
+              </form>
+              <div class="form-note">Connections are stored locally in YAML.</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg history-modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header history-modal-header">
+          <h5 class="modal-title">History</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul id="historyList" class="history-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="builderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl builder-modal-dialog">
+      <div class="modal-content builder-modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Query Builder</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body builder-modal-body">
+          <div class="builder-toolbar">
+            <select id="builderTableSelect" class="form-select form-select-sm"></select>
+            <button class="btn btn-outline-light btn-sm" id="builderAddBtn">Add Table</button>
+            <div class="builder-spacer"></div>
+            <button class="btn btn-outline-secondary btn-sm" id="builderClearBtn">Clear</button>
+          </div>
+          <div class="builder-canvas" id="builderCanvas">
+            <svg class="builder-links" id="builderLinks"></svg>
+          </div>
+          <div class="builder-sql">
+            <label class="form-label">SQL</label>
+            <textarea id="builderSql" class="builder-sql-input" rows="4"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+          <button class="btn btn-primary" id="builderApplyBtn">Apply to Command</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="jsonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">JSON</h5>
+          <button type="button" class="btn btn-outline-light btn-sm" id="jsonDecodeBtn">Decode Nested JSON</button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <pre id="jsonModalBody" class="json-modal-body"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="pasteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Paste Image</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="paste-area" id="pasteArea" tabindex="0">
+            <div class="paste-title">Click here and paste an image (Ctrl+V)</div>
+            <div class="paste-preview" id="pastePreview"></div>
+          </div>
+          <div class="paste-result-row">
+            <input class="paste-result-input" id="pasteResult" readonly />
+            <button class="btn btn-outline-light btn-sm" id="copyPastePathBtn" type="button">Copy</button>
+          </div>
+          <div class="paste-hint" id="pasteHint"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="app.js"></script>
+  <script src="http://localhost:35729/livereload.js?snipver=1"></script>
+</body>
+</html>

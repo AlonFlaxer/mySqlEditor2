@@ -71,7 +71,8 @@ app.post('/api/connections', (req, res) => {
     database: String(input.database || '').trim(),
     username: String(input.username || '').trim(),
     password: String(input.password || '').trim(),
-    file: String(input.file || '').trim()
+    file: String(input.file || '').trim(),
+    isProduction: !!input.isProduction
   };
 
   const idx = conns.findIndex(c => c.id === conn.id);

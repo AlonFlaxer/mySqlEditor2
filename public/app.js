@@ -21,6 +21,7 @@ const connDb = document.getElementById('connDb');
 const connUser = document.getElementById('connUser');
 const connPass = document.getElementById('connPass');
 const connFile = document.getElementById('connFile');
+const connProd = document.getElementById('connProd');
 const queryTabs = document.getElementById('queryTabs');
 const historyList = document.getElementById('historyList');
 const statusLine = document.getElementById('statusLine');
@@ -79,6 +80,7 @@ let tabs = [];
 let activeTabId = '';
 let history = [];
 let resultHistory = [];
+const ACTIVE_CONNECTION_KEY = 'sql_editor_active_connection';
 let schemaIndex = { tables: new Map(), simple: new Map() };
 let autocomplete = {
   open: false,
@@ -411,7 +413,8 @@ form.addEventListener('submit', async (e) => {
     database: connDb.value,
     username: connUser.value,
     password: connPass.value,
-    file: connFile.value
+    file: connFile.value,
+    isProduction: !!connProd.checked
   };
 
   const res = await fetch('/api/connections', {
@@ -427,8 +430,7 @@ form.addEventListener('submit', async (e) => {
 });
 
 connectionSelect.addEventListener('change', () => {
-  activeId = connectionSelect.value;
-  loadSchema();
+  setActiveConnection(connectionSelect.value);
 });
 
 async function loadConnections() {
@@ -441,7 +443,9 @@ async function loadConnections() {
   renderConnectionsSelect();
 
   if (!activeId && connections.length > 0) {
-    setActiveConnection(connections[0].id);
+    const stored = localStorage.getItem(ACTIVE_CONNECTION_KEY);
+    const found = stored && connections.find(c => c.id === stored);
+    setActiveConnection(found ? found.id : connections[0].id);
   } else {
     loadSchema();
   }
@@ -507,6 +511,11 @@ function renderConnectionsSelect() {
 
 function setActiveConnection(id) {
   activeId = id;
+  if (activeId) {
+    localStorage.setItem(ACTIVE_CONNECTION_KEY, activeId);
+  }
+  const activeConn = connections.find(c => c.id === activeId);
+  document.body.classList.toggle('prod-connection', !!(activeConn && activeConn.isProduction));
   renderConnectionsSelect();
   loadSchema();
 }
@@ -521,6 +530,7 @@ function fillForm(conn) {
   connUser.value = conn.username || '';
   connPass.value = conn.password || '';
   connFile.value = conn.file || '';
+  connProd.checked = !!conn.isProduction;
 }
 
 function resetForm() {
@@ -533,12 +543,16 @@ function resetForm() {
   connUser.value = '';
   connPass.value = '';
   connFile.value = '';
+  connProd.checked = false;
 }
 
 async function removeConnection(id) {
   setStatus('Removing connection...');
   await fetch(`/api/connections/${id}`, { method: 'DELETE' });
-  if (id === activeId) activeId = '';
+  if (id === activeId) {
+    activeId = '';
+    localStorage.removeItem(ACTIVE_CONNECTION_KEY);
+  }
   await loadConnections();
   setStatus('Connection removed.');
 }

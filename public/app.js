@@ -32,6 +32,7 @@ const copyPastePathBtn = document.getElementById('copyPastePathBtn');
 const pasteHint = document.getElementById('pasteHint');
 const workspace = document.querySelector('.workspace');
 const commandPane = document.querySelector('.command-pane');
+const commandBody = commandPane.querySelector('.command-body');
 const paneSplitter = document.getElementById('paneSplitter');
 const toggleSchemaBtn = document.getElementById('toggleSchemaBtn');
 const toggleSchemaTopBtn = document.getElementById('toggleSchemaTopBtn');
@@ -46,6 +47,25 @@ let jsonModalRaw = '';
 const autocompleteBox = document.createElement('div');
 autocompleteBox.className = 'sql-autocomplete';
 commandPane.appendChild(autocompleteBox);
+const findReplaceBar = document.createElement('div');
+findReplaceBar.className = 'sql-find-replace';
+findReplaceBar.innerHTML = `
+  <input type="text" class="form-control form-control-sm sql-find-input" placeholder="Find" />
+  <input type="text" class="form-control form-control-sm sql-replace-input" placeholder="Replace" />
+  <button type="button" class="btn btn-outline-light btn-sm sql-find-next-btn">Next</button>
+  <button type="button" class="btn btn-outline-secondary btn-sm sql-find-prev-btn">Prev</button>
+  <button type="button" class="btn btn-outline-light btn-sm sql-replace-btn">Replace</button>
+  <button type="button" class="btn btn-outline-secondary btn-sm sql-replace-all-btn">Replace All</button>
+  <button type="button" class="btn btn-outline-secondary btn-sm sql-find-close-btn" title="Close">X</button>
+`;
+commandBody.insertBefore(findReplaceBar, sqlInput);
+const findInput = findReplaceBar.querySelector('.sql-find-input');
+const replaceInput = findReplaceBar.querySelector('.sql-replace-input');
+const findNextBtn = findReplaceBar.querySelector('.sql-find-next-btn');
+const findPrevBtn = findReplaceBar.querySelector('.sql-find-prev-btn');
+const replaceBtn = findReplaceBar.querySelector('.sql-replace-btn');
+const replaceAllBtn = findReplaceBar.querySelector('.sql-replace-all-btn');
+const findCloseBtn = findReplaceBar.querySelector('.sql-find-close-btn');
 const autocompleteMirror = document.createElement('div');
 autocompleteMirror.style.position = 'absolute';
 autocompleteMirror.style.visibility = 'hidden';
@@ -89,6 +109,7 @@ let autocomplete = {
   start: 0,
   end: 0
 };
+let showReplaceControls = false;
 let builderState = {
   tables: new Map(),
   links: [],
@@ -254,6 +275,21 @@ document.getElementById('newConnBtn').addEventListener('click', resetForm);
 document.getElementById('newTabBtn').addEventListener('click', createNewTab);
 sqlInput.addEventListener('input', syncActiveTab);
 sqlInput.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    openFindReplace(false);
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+    e.preventDefault();
+    openFindReplace(true);
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'h') {
+    e.preventDefault();
+    openFindReplace(true);
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     runSql();
@@ -283,6 +319,130 @@ sqlInput.addEventListener('keydown', (e) => {
       e.preventDefault();
       closeAutocomplete();
     }
+  }
+});
+
+function openFindReplace(withReplace) {
+  showReplaceControls = !!withReplace;
+  findReplaceBar.classList.add('open');
+  findReplaceBar.classList.toggle('replace-mode', showReplaceControls);
+  if (showReplaceControls) {
+    replaceInput.value = replaceInput.value || '';
+  }
+  findInput.focus();
+  findInput.select();
+}
+
+function closeFindReplace() {
+  findReplaceBar.classList.remove('open');
+  findReplaceBar.classList.remove('replace-mode');
+  sqlInput.focus();
+}
+
+function findMatch(query, start, backwards = false) {
+  if (!query) return -1;
+  const text = sqlInput.value;
+  if (!text) return -1;
+  if (backwards) {
+    const before = text.lastIndexOf(query, Math.max(start, 0));
+    if (before !== -1) return before;
+    return text.lastIndexOf(query);
+  }
+  const after = text.indexOf(query, Math.max(start, 0));
+  if (after !== -1) return after;
+  return text.indexOf(query);
+}
+
+function selectMatchAt(index, length) {
+  sqlInput.focus();
+  sqlInput.setSelectionRange(index, index + length);
+}
+
+function findNext(backwards = false) {
+  const query = findInput.value;
+  if (!query) {
+    setStatus('Enter text to find.', true);
+    return false;
+  }
+  const start = backwards
+    ? (sqlInput.selectionStart ?? 0) - 1
+    : (sqlInput.selectionEnd ?? 0);
+  const idx = findMatch(query, start, backwards);
+  if (idx === -1) {
+    setStatus('No matches found.', true);
+    return false;
+  }
+  selectMatchAt(idx, query.length);
+  return true;
+}
+
+function selectionMatches(query) {
+  const start = sqlInput.selectionStart ?? 0;
+  const end = sqlInput.selectionEnd ?? 0;
+  if (start === end) return false;
+  return sqlInput.value.slice(start, end) === query;
+}
+
+function replaceCurrent() {
+  const query = findInput.value;
+  if (!query) {
+    setStatus('Enter text to find.', true);
+    return;
+  }
+  if (!selectionMatches(query) && !findNext(false)) return;
+  const start = sqlInput.selectionStart ?? 0;
+  const end = sqlInput.selectionEnd ?? 0;
+  const replacement = replaceInput.value;
+  sqlInput.setRangeText(replacement, start, end, 'end');
+  sqlInput.setSelectionRange(start, start + replacement.length);
+  sqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function replaceAllMatches() {
+  const query = findInput.value;
+  if (!query) {
+    setStatus('Enter text to find.', true);
+    return;
+  }
+  const text = sqlInput.value;
+  if (!text.includes(query)) {
+    setStatus('No matches found.', true);
+    return;
+  }
+  let count = 0;
+  let idx = 0;
+  while ((idx = text.indexOf(query, idx)) !== -1) {
+    count += 1;
+    idx += query.length;
+  }
+  sqlInput.value = text.split(query).join(replaceInput.value);
+  sqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+  setStatus(`Replaced ${count} match${count === 1 ? '' : 'es'}.`);
+}
+
+findNextBtn.addEventListener('click', () => findNext(false));
+findPrevBtn.addEventListener('click', () => findNext(true));
+replaceBtn.addEventListener('click', replaceCurrent);
+replaceAllBtn.addEventListener('click', replaceAllMatches);
+findCloseBtn.addEventListener('click', closeFindReplace);
+
+findInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    findNext(e.shiftKey);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeFindReplace();
+  }
+});
+
+replaceInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    replaceCurrent();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeFindReplace();
   }
 });
 
@@ -327,6 +487,21 @@ sqlInput.addEventListener('input', () => {
 });
 
 window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && commandPane.contains(document.activeElement)) {
+    e.preventDefault();
+    openFindReplace(false);
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h' && commandPane.contains(document.activeElement)) {
+    e.preventDefault();
+    openFindReplace(true);
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'h' && commandPane.contains(document.activeElement)) {
+    e.preventDefault();
+    openFindReplace(true);
+    return;
+  }
   if (e.key === 'F5') {
     e.preventDefault();
     runSql();
@@ -1276,18 +1451,28 @@ function getCaretCoords(textarea) {
 
 async function runSql() {
   try {
+    const hasSelection = (sqlInput.selectionStart ?? 0) !== (sqlInput.selectionEnd ?? 0);
+    const sqlToRun = hasSelection
+      ? sqlInput.value.slice(sqlInput.selectionStart, sqlInput.selectionEnd)
+      : sqlInput.value;
+
+    if (!sqlToRun.trim()) {
+      setStatus('Nothing to run.', true);
+      return;
+    }
+
     setStatus('Running SQL...');
     const res = await fetch('/api/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql: sqlInput.value, connectionId: activeId })
+      body: JSON.stringify({ sql: sqlToRun, connectionId: activeId })
     });
 
     const data = await res.json();
     lastResult = { columns: data.columns || [], rows: data.rows || [] };
     renderResult();
     if (!data.error) {
-      pushHistory(sqlInput.value);
+      pushHistory(sqlToRun);
       const rows = Array.isArray(data.rows) ? data.rows.length : 0;
       setStatus(`Done. Rows: ${rows}.`);
     } else {
@@ -1872,10 +2057,14 @@ function formatResultHistoryLabel(entry) {
 
 function saveResultSnapshot(columns, rows) {
   if (!rows.length || !columns.length) return;
+  const hasSelection = (sqlInput.selectionStart ?? 0) !== (sqlInput.selectionEnd ?? 0);
+  const sqlForSnapshot = hasSelection
+    ? sqlInput.value.slice(sqlInput.selectionStart, sqlInput.selectionEnd).trim()
+    : sqlInput.value.trim();
   const conn = connections.find(c => c.id === activeId);
   resultHistory.unshift({
     id: makeId(),
-    sql: sqlInput.value.trim(),
+    sql: sqlForSnapshot,
     connection: conn ? conn.name : 'unknown',
     at: new Date().toISOString(),
     columns: columns.slice(),

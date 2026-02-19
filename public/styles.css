@@ -334,6 +334,43 @@ body.schema-hidden .schema-tab {
   resize: none;
 }
 
+.sql-find-replace {
+  display: none;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sql-find-replace.open {
+  display: flex;
+}
+
+.sql-find-replace .sql-find-input {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.sql-find-replace .sql-replace-input,
+.sql-find-replace .sql-replace-btn,
+.sql-find-replace .sql-replace-all-btn {
+  display: none;
+}
+
+.sql-find-replace.replace-mode .sql-replace-input,
+.sql-find-replace.replace-mode .sql-replace-btn,
+.sql-find-replace.replace-mode .sql-replace-all-btn {
+  display: inline-flex;
+}
+
+.sql-find-replace.replace-mode .sql-replace-input {
+  display: block;
+}
+
+.sql-find-replace.replace-mode .sql-replace-input {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
 .sql-autocomplete {
   position: absolute;
   z-index: 1200;

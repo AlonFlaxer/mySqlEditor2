@@ -55,7 +55,7 @@ findReplaceBar.innerHTML = `
   <button type="button" class="btn btn-outline-light btn-sm sql-find-next-btn">Next</button>
   <button type="button" class="btn btn-outline-secondary btn-sm sql-find-prev-btn">Prev</button>
   <button type="button" class="btn btn-outline-light btn-sm sql-replace-btn">Replace</button>
-  <button type="button" class="btn btn-outline-secondary btn-sm sql-replace-all-btn">Replace All</button>
+  <button type="button" class="btn btn-outline-light btn-sm sql-replace-all-btn">Replace All</button>
   <button type="button" class="btn btn-outline-secondary btn-sm sql-find-close-btn" title="Close">X</button>
 `;
 commandBody.insertBefore(findReplaceBar, sqlInput);
@@ -358,15 +358,46 @@ function selectMatchAt(index, length) {
   sqlInput.setSelectionRange(index, index + length);
 }
 
+function applyTextEdit(start, end, replacement, selectMode = 'end') {
+  sqlInput.focus();
+  sqlInput.setSelectionRange(start, end);
+
+  let usedNativeUndo = false;
+  if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+    usedNativeUndo = document.execCommand('insertText', false, replacement);
+  }
+
+  if (!usedNativeUndo) {
+    sqlInput.setRangeText(replacement, start, end, selectMode);
+    sqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+
+  // Normalize selection behavior across browsers when native insertText is used.
+  const replacementEnd = start + replacement.length;
+  if (selectMode === 'select') {
+    sqlInput.setSelectionRange(start, replacementEnd);
+  } else if (selectMode === 'start') {
+    sqlInput.setSelectionRange(start, start);
+  } else if (selectMode === 'preserve') {
+    sqlInput.setSelectionRange(start, replacementEnd);
+  } else {
+    sqlInput.setSelectionRange(replacementEnd, replacementEnd);
+  }
+}
+
 function findNext(backwards = false) {
   const query = findInput.value;
   if (!query) {
     setStatus('Enter text to find.', true);
     return false;
   }
+  const selStart = sqlInput.selectionStart ?? 0;
+  const selEnd = sqlInput.selectionEnd ?? 0;
+  const isCurrentMatchSelected = selStart !== selEnd && sqlInput.value.slice(selStart, selEnd) === query;
   const start = backwards
-    ? (sqlInput.selectionStart ?? 0) - 1
-    : (sqlInput.selectionEnd ?? 0);
+    ? selStart - 1
+    : (isCurrentMatchSelected ? selEnd : selStart);
   const idx = findMatch(query, start, backwards);
   if (idx === -1) {
     setStatus('No matches found.', true);
@@ -393,9 +424,7 @@ function replaceCurrent() {
   const start = sqlInput.selectionStart ?? 0;
   const end = sqlInput.selectionEnd ?? 0;
   const replacement = replaceInput.value;
-  sqlInput.setRangeText(replacement, start, end, 'end');
-  sqlInput.setSelectionRange(start, start + replacement.length);
-  sqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+  applyTextEdit(start, end, replacement, 'select');
 }
 
 function replaceAllMatches() {
@@ -415,8 +444,8 @@ function replaceAllMatches() {
     count += 1;
     idx += query.length;
   }
-  sqlInput.value = text.split(query).join(replaceInput.value);
-  sqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+  const replaced = text.split(query).join(replaceInput.value);
+  applyTextEdit(0, text.length, replaced, 'end');
   setStatus(`Replaced ${count} match${count === 1 ? '' : 'es'}.`);
 }
 

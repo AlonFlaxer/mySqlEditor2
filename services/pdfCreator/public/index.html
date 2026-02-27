@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paste Image to PDF</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1 class="title-line">
+      <img class="title-icon" src="Clibboard.jpg" alt="Clipboard" />
+      <span>Paste Images, Build PDF</span>
+    </h1>
+    <p class="subtitle">Paste one image at a time, then generate and download a PDF in one click.</p>
+
+    <div id="pasteBox" class="paste-box" contenteditable="true">
+      Click here, then paste image (Ctrl+V / Cmd+V)
+    </div>
+
+    <div class="actions">
+      <a href="/" class="btn-link">Main Hub</a>
+      <button id="btnClipboard">Use Clipboard Image</button>
+      <button id="btnCreatePdf">Create PDF</button>
+      <button id="btnDownload" disabled>Download PDF</button>
+      <button id="btnClear" class="danger">Clear</button>
+    </div>
+
+    <p id="status" class="status">Ready.</p>
+
+    <section>
+      <h2>Saved Images</h2>
+      <div id="thumbs" class="thumbs"></div>
+    </section>
+  </main>
+
+  <div id="pdfModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pdfModalTitle">
+    <div class="modal-card">
+      <h3 id="pdfModalTitle">Create PDF</h3>
+      <label for="pdfFileName">File name</label>
+      <input id="pdfFileName" type="text" value="images.pdf" />
+      <div class="modal-actions">
+        <button id="btnModalCancel" class="secondary">Cancel</button>
+        <button id="btnModalCreate">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

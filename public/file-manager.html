@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Manager</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/vendor/codemirror/lib/codemirror.css">
+  <link rel="stylesheet" href="/vendor/codemirror/addon/dialog/dialog.css">
+  <link rel="stylesheet" href="/vendor/codemirror/addon/hint/show-hint.css">
+  <link rel="stylesheet" href="/vendor/codemirror/theme/material.css">
+</head>
+<body>
+  <main class="fm">
+    <section class="panel" id="foldersPanel">
+      <button type="button" onclick="window.location.href='/'">Main Hub</button>
+      <h2>Folders</h2>
+      <label class="label" for="rootPath">Root Folder</label>
+      <input id="rootPath" class="input" placeholder="/home/ubuntu/projects">
+      <div class="toolbar">
+        <button id="setRootBtn">Set Root</button>
+        <button id="refreshTreeBtn">Refresh Tree</button>
+      </div>
+      <div class="tree" id="tree"></div>
+    </section>
+    <div class="resize-handle" id="leftHandle" title="Resize panes"></div>
+
+    <section class="panel" id="explorerPanel">
+      <h2>Explorer</h2>
+      <div class="path-bar" id="currentPath"></div>
+      <div class="toolbar">
+        <button id="upBtn">Up</button>
+        <button id="newFileBtn">New File</button>
+        <button id="newFolderBtn">New Folder</button>
+        <button id="downloadFolderBtn">Download Folder (.zip)</button>
+      </div>
+      <table class="entries">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Mode</th>
+            <th>Size</th>
+            <th>Modified</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="entriesBody"></tbody>
+      </table>
+      <div class="toolbar">
+        <input id="uploadInput" type="file" multiple>
+        <button id="uploadBtn">Upload</button>
+      </div>
+      <div class="msg" id="uploadMsg"></div>
+      <div class="toolbar">
+        <button id="syncBtn">Generate Sync Commands</button>
+      </div>
+      <pre id="syncOut"></pre>
+    </section>
+    <div class="resize-handle" id="rightHandle" title="Resize panes"></div>
+
+    <section class="panel preview-panel" id="previewPanel">
+      <div class="preview-header" id="previewTitle">No file selected</div>
+      <div id="previewContainer"></div>
+    </section>
+  </main>
+  <div class="fm-modal hidden" id="fmModalOverlay" role="dialog" aria-modal="true" aria-labelledby="fmModalTitle">
+    <div class="fm-modal-card">
+      <h3 id="fmModalTitle">Action</h3>
+      <p id="fmModalMessage"></p>
+      <input id="fmModalInput" class="input" />
+      <div class="fm-modal-actions">
+        <button id="fmModalCancelBtn" type="button">Cancel</button>
+        <button id="fmModalOkBtn" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+  <div class="fm-modal hidden" id="fmHelpOverlay" role="dialog" aria-modal="true" aria-labelledby="fmHelpTitle">
+    <div class="fm-modal-card">
+      <h3 id="fmHelpTitle">Editor Shortcuts</h3>
+      <div class="fm-help-list">
+        <p><strong>Autocomplete</strong>: <code>Ctrl+Space</code></p>
+        <p><strong>Find</strong>: <code>Ctrl+F</code></p>
+        <p><strong>Replace</strong>: <code>Ctrl+H</code></p>
+        <p><strong>Next Match</strong>: <code>Enter</code> or <code>Ctrl+G</code></p>
+        <p><strong>Previous Match</strong>: <code>Shift+Enter</code> or <code>Shift+Ctrl+G</code></p>
+        <p><strong>Save File</strong>: <code>Ctrl+S</code></p>
+      </div>
+      <div class="fm-modal-actions">
+        <button id="fmHelpCloseBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+  <div class="fm-modal hidden" id="fmConflictOverlay" role="dialog" aria-modal="true" aria-labelledby="fmConflictTitle">
+    <div class="fm-modal-card">
+      <h3 id="fmConflictTitle">File Changed on Server</h3>
+      <p>The open file was modified on the server while you have unsaved changes.</p>
+      <div class="fm-modal-actions">
+        <button id="fmConflictLoadBtn" type="button">Load from Server</button>
+        <button id="fmConflictDiffBtn" type="button">Show Diff</button>
+      </div>
+    </div>
+  </div>
+  <div class="fm-modal hidden" id="fmDiffOverlay" role="dialog" aria-modal="true" aria-labelledby="fmDiffTitle">
+    <div class="fm-modal-card fm-modal-card-wide">
+      <h3 id="fmDiffTitle">Local vs Server Diff</h3>
+      <div class="fm-diff-toolbar">
+        <button id="fmDiffPrevBtn" type="button">Prev Change</button>
+        <button id="fmDiffNextBtn" type="button">Next Change</button>
+        <button id="fmDiffMergeRightToLeftBtn" type="button">Merge Server -> Local</button>
+        <button id="fmDiffMergeLeftToRightBtn" type="button">Merge Local -> Server</button>
+        <button id="fmDiffApplyLeftBtn" type="button">Apply Local Panel</button>
+        <button id="fmDiffApplyRightBtn" type="button">Apply Server Panel</button>
+      </div>
+      <div class="path-bar">Left: local unsaved | Right: server</div>
+      <div id="fmMergelyContainer" class="fm-mergely"></div>
+      <div id="fmDiffError" class="msg error"></div>
+      <div class="fm-modal-actions">
+        <button id="fmDiffSaveBtn" type="button">Save</button>
+        <button id="fmDiffDropBtn" type="button">Drop Changes</button>
+        <button id="fmDiffCloseBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/codemirror/lib/codemirror.js"></script>
+  <script src="/vendor/codemirror/mode/javascript/javascript.js"></script>
+  <script src="/vendor/codemirror/mode/shell/shell.js"></script>
+  <script src="/vendor/codemirror/mode/python/python.js"></script>
+  <script src="/vendor/codemirror/mode/sql/sql.js"></script>
+  <script src="/vendor/codemirror/mode/yaml/yaml.js"></script>
+  <script src="/vendor/codemirror/mode/xml/xml.js"></script>
+  <script src="/vendor/codemirror/mode/css/css.js"></script>
+  <script src="/vendor/codemirror/mode/markdown/markdown.js"></script>
+  <script src="/vendor/codemirror/mode/clike/clike.js"></script>
+  <script src="/vendor/codemirror/addon/edit/closebrackets.js"></script>
+  <script src="/vendor/codemirror/addon/edit/matchbrackets.js"></script>
+  <script src="/vendor/codemirror/addon/selection/active-line.js"></script>
+  <script src="/vendor/codemirror/addon/dialog/dialog.js"></script>
+  <script src="/vendor/codemirror/addon/search/searchcursor.js"></script>
+  <script src="/vendor/codemirror/addon/search/search.js"></script>
+  <script src="/vendor/codemirror/addon/hint/show-hint.js"></script>
+  <script src="/vendor/codemirror/addon/hint/anyword-hint.js"></script>
+  <script src="/file-manager.js"></script>
+</body>
+</html>

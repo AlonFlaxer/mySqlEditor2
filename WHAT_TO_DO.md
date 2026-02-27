@@ -1,31 +1,31 @@
-s repo is a an app to manage sql ,   
-it is GUI based on WEB to manage connected sql datasource
-base on node express bootstrap jquery 
-the ui is with browser
-on the main menu the user sees
-this setup:
+* what it is
 
-menu--------------------
-| v   | command pane   |
-| e   |                |
-| r   |                |
-| t   |----------------|
-| i   | result pane    |
-| c   |                |
-| a   |                |
-| k   |                |
------------------------
-
-
-on vertical pane , users see tree view  of connected schema-> table -> columns and types : name (t) | type can be i for integer s for string ... and son on 
-on comman pane user can enter sql commands
-on result  pane user can see a table woith command result
-
-on menu user has connect entry 
-whe modal pop up  is show where user can manage connectiosn , 
-the connections are sotred on local yml files
-
-the connection type can be sqlite, mysql, dynamoDB and more
-the app run on port 3010
+create a app that supprts my devlopment and work need, 
+create a landing page with boxes for diffrent services
+- first box wolud be mySqlEditor,
+incorporate the full project find in ~/projects/mySqlEditor2, (dont touch original folder /projects/mySqlEditor2, in the future i will delet it)
+- second box would be what is now in ~/projects/pdfCreator
+- thid box would be  file manager:
+this shuld allow user browse the fie system on the server
+its looks like explorer
+where left side contains a tree view of the filesystem
+user can select to starting point - a folder that would be the root of the tree
+this selection is saved on browser local storage and would be loaded when page loads
+on the right pane - list content as ls -lath would
+user can click on file and download it
+she can click on folder and download it as zip file
+if a file is selected , user can have preview on that file:
+- pipe-sv / csv file would show as "samrt table" pagination size, sorts, filters
+- image - with preview
+- code like javascript | shell | python | env ,basic editor  with a code hightligt, search option , serach and replace:
+in future maybe full online editor , compatible with vs code
 
 
+
+
+user also can upload files to the selected folder form local machine
+
+user can initiate sync, the result would be a message with
+1) unison comnmand he just has to copy and run localy
+2) cp command
+3) sync command

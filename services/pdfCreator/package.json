@@ -1,0 +1,13 @@
+{
+  "name": "pdf-creator",
+  "version": "1.0.0",
+  "description": "Paste images, save as PNGs, and build/download PDF",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pdfkit": "^0.16.0"
+  }
+}
